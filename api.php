@@ -1,4 +1,5 @@
 <?php
+
 // Hook into the rest_api_init action to register our custom REST route.
 add_action('rest_api_init', function () {
     register_rest_route('api/v1', '/post/', array(
@@ -9,7 +10,7 @@ add_action('rest_api_init', function () {
 });
 
 // Функция, которая обрабатывает запрос и создает пост
-function echo_spread_process($request) {
+function echo_spread_process(WP_REST_Request $request) {
     try {
         // Получаем токен из заголовка Authorization
         $headers = getallheaders();
@@ -18,7 +19,8 @@ function echo_spread_process($request) {
         log_api_request($request->get_body());
 
         // Сравниваем полученный токен с сохраненным в опции 'echo_spread_token'
-        $saved_token = get_option('echo_spread_token', 'qwer1234');
+        $options = get_option('echo_spread_options', []);
+        $saved_token = $options['echo_spread_token'] ?: 'qwer1234';
 
         if ($received_token !== $saved_token) {
             return new WP_REST_Response('Unauthorized', 401);
@@ -26,16 +28,42 @@ function echo_spread_process($request) {
 
         // Получаем тело запроса и декодируем его из JSON
         $parameters = json_decode($request->get_body(), true);
-        $title = $parameters['title'] ?? '';  // Убедись, что ключ 'message' существует
-        $message = $parameters['text'] ?? '';  // Убедись, что ключ 'message' существует
+        $title = $parameters['title'] ?? '';
+        $message = $parameters['text'] ?? '';
 
         // Проверяем, содержит ли сообщение слово "привет"
         $category = strpos(strtolower($message), 'привет') !== false ? [5] : [];
 
+        require_once(ABSPATH . "wp-admin" . '/includes/image.php');
+        require_once(ABSPATH . "wp-admin" . '/includes/file.php');
+        require_once(ABSPATH . "wp-admin" . '/includes/media.php');
+
+
+        $content = '';
+        $attachments = [];
+        if(isset($parameters['media']['image'])) {
+            foreach ($parameters['media']['image'] as $src) {
+                $attachment_id = media_sideload_image($src, 0, '', 'id');
+                if (is_int($attachment_id)) {
+                    $attachments[] = $attachment_id;
+                    $content .= '<img style="margin-bottom:20px" src="' . wp_get_attachment_url($attachment_id) . '" alt="img">';
+                } else {
+                    throw new Exception('Ошибка при добавлении изображения.');
+                }
+            }
+        }
+        if(isset($parameters['media']['video'])) {
+            foreach ($parameters['media']['video'] as $src) {
+                $content .= '<video style="margin-bottom:20px;width:100%;" controls><source src="'. $src . '"></video>';
+                break;
+            }
+        }
+        $content .= $message;
+
         // Параметры для создания поста
         $post_data = array(
             'post_title' => wp_strip_all_tags($title),
-            'post_content' => $message,
+            'post_content' => $content,
             'post_status' => 'publish',
             'post_author' => 1,  // ID автора, замените на актуальный ID пользователя
             'post_category' => $category
@@ -43,6 +71,14 @@ function echo_spread_process($request) {
 
         // Вставляем пост в базу данных
         $post_id = wp_insert_post($post_data);
+
+        foreach ($attachments as $id) {
+            wp_update_post([
+                'ID' => $id,
+                'post_parent' => $post_id
+            ]);
+        }
+
     } catch (Exception $exception) {
         return new WP_REST_Response(['error' => $exception->getMessage()], 500);
     }

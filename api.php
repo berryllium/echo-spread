@@ -34,7 +34,7 @@ function echo_spread_process($request) {
 
         // Параметры для создания поста
         $post_data = array(
-            'post_title' => wp_strip_all_tags($message),
+            'post_title' => wp_strip_all_tags($title),
             'post_content' => $message,
             'post_status' => 'publish',
             'post_author' => 1,  // ID автора, замените на актуальный ID пользователя
@@ -44,13 +44,13 @@ function echo_spread_process($request) {
         // Вставляем пост в базу данных
         $post_id = wp_insert_post($post_data);
     } catch (Exception $exception) {
-        return new WP_REST_Response(json_encode(['error' => $exception->getMessage()], 500));
+        return new WP_REST_Response(['error' => $exception->getMessage()], 500);
     }
 
     if ($post_id !== 0) {
-        return new WP_REST_Response(json_encode(['message' => 'Post Created Successfully', 'post_id' => $post_id]), 200);
+        return new WP_REST_Response(['message' => 'Post Created Successfully', 'post_id' => $post_id], 200);
     } else {
-        return new WP_REST_Response(json_encode(['error' => 'Failed to Create Post'], 500));
+        return new WP_REST_Response(['error' => 'Failed to Create Post'], 500);
     }
 }
 

@@ -11,6 +11,10 @@ add_action('rest_api_init', function () {
 
 // Функция, которая обрабатывает запрос и создает пост
 function echo_spread_process(WP_REST_Request $request) {
+    require_once(ABSPATH . "wp-admin" . '/includes/image.php');
+    require_once(ABSPATH . "wp-admin" . '/includes/file.php');
+    require_once(ABSPATH . "wp-admin" . '/includes/media.php');
+
     try {
         // Получаем токен из заголовка Authorization
         $headers = getallheaders();
@@ -31,12 +35,20 @@ function echo_spread_process(WP_REST_Request $request) {
         $title = $parameters['title'] ?? '';
         $message = $parameters['text'] ?? '';
 
-        // Проверяем, содержит ли сообщение слово "привет"
-        $category = strpos(strtolower($message), 'привет') !== false ? [5] : [];
-
-        require_once(ABSPATH . "wp-admin" . '/includes/image.php');
-        require_once(ABSPATH . "wp-admin" . '/includes/file.php');
-        require_once(ABSPATH . "wp-admin" . '/includes/media.php');
+        // Проверяем, содержит ли сообщение ключевые слова категорий
+        $categories = [];
+        if(isset($options['category_keys']) && is_array($options['category_keys'])) {
+            foreach($options['category_keys'] as $cat_id => $keys) {
+                if(!$keys || !$message) continue;
+                $keys = explode(',', $keys);
+                $keys = array_map(fn($el) => trim($el), $keys);
+                foreach ($keys as $key) {
+                    if($message && stripos($message, $key) !== false) {
+                        $categories[] = $cat_id;
+                    }
+                }
+            }
+        }
 
 
         $content = '';
@@ -65,8 +77,8 @@ function echo_spread_process(WP_REST_Request $request) {
             'post_title' => wp_strip_all_tags($title),
             'post_content' => $content,
             'post_status' => 'publish',
-            'post_author' => 1,  // ID автора, замените на актуальный ID пользователя
-            'post_category' => $category
+            'post_author' => $options['echo_spread_user'] ?: 1,
+            'post_category' => $categories
         );
 
         // Вставляем пост в базу данных

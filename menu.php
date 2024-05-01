@@ -44,6 +44,14 @@ function echo_spread_settings_init() {
     );
 
     add_settings_field(
+        'echo_spread_default_category',
+        'Категория по умолчанию',
+        'echo_spread_default_category_render',
+        'echo_spread',
+        'echo_spread_main_section'
+    );
+
+    add_settings_field(
         'echo_spread_category_keys',
         '',
         'echo_spread_category_keys_render',
@@ -74,6 +82,20 @@ function echo_spread_user_render() {
     echo '</select>';
 }
 
+function echo_spread_default_category_render() {
+    $options = get_option('echo_spread_options');
+    $echo_spread_default_category = $options['echo_spread_default_category'] ?? '';
+
+    $categories = get_categories(array('hide_empty' => 0));
+
+    echo '<select name="echo_spread_options[echo_spread_default_category]" id="echo_spread_echo_spread_default_category">';
+    echo '<option value="">Не указана</option>';
+    foreach ($categories as $category) {
+        $selected = ($category->term_id == $echo_spread_default_category) ? 'selected' : '';
+        echo '<option value="' . esc_attr($category->term_id) . '" ' . $selected . '>' . esc_html($category->name) . '</option>';
+    }
+    echo '</select>';
+}
 
 function echo_spread_settings_section_callback() {
     echo 'Введите настройки для подключения к API';
@@ -87,17 +109,20 @@ function echo_spread_category_keys_render() {
     $categories = get_categories(array('hide_empty' => 0));
 
     echo '<table class="form-table"><tbody>';
-    echo "<tr><th>Название категории</th><th>Ключевые слова через запятую</th></tr>";
+    echo "<tr><th>Название категории</th><th>Ключевые фразы через точку с запятой</th><th>Запрещенне фразы через точку с запятой</th></tr>";
 
     foreach ($categories as $category) {
         $cat_id = $category->term_id;
         $cat_name = $category->name;
         $field_name = "echo_spread_options[category_keys][$cat_id]";
+        $field_name_black_list = "echo_spread_options[category_keys_black_list][$cat_id]";
         $value = $options['category_keys'][$cat_id] ?? '';
+        $value_black_list = $options['category_keys_black_list'][$cat_id] ?? '';
 
         echo "<tr>";
         echo "<td scope='row'><label for='$field_name'>$cat_name</label></td>";
         echo "<td><textarea name='$field_name' id='$field_name' style='width: 100%; max-width: 300px;'>".esc_attr($value)."</textarea></td>";
+        echo "<td><textarea name='$field_name_black_list' id='$field_name_black_list' style='width: 100%; max-width: 300px;'>".esc_attr($value_black_list)."</textarea></td>";
         echo "</tr>";
     }
 

@@ -36,18 +36,31 @@ function echo_spread_process(WP_REST_Request $request) {
         $message = $parameters['text'] ?? '';
 
         // Проверяем, содержит ли сообщение ключевые слова категорий
-        $categories = [];
-        if(isset($options['category_keys']) && is_array($options['category_keys'])) {
-            foreach($options['category_keys'] as $cat_id => $keys) {
-                if(!$keys || !$message) continue;
-                $keys = explode(',', $keys);
+        $all_categories = get_categories(['hide_empty' => 0]);
+        foreach ($all_categories as $current_cat) {
+            /** @var WP_Term $current_cat */
+            if(isset($options['category_keys'][$current_cat->term_id])) {
+                $black_list = explode(';', $options['category_keys_black_list'][$current_cat->term_id]) ?: [];
+                $black_list = array_map(fn($el) => trim($el), $black_list);
+
+                foreach ($black_list as $key) {
+                    if(stripos($message, $key) !== false) {
+                        break 2;
+                    }
+                }
+
+                $keys = explode(';', $options['category_keys'][$current_cat->term_id]) ?: [];
                 $keys = array_map(fn($el) => trim($el), $keys);
                 foreach ($keys as $key) {
-                    if($message && stripos($message, $key) !== false) {
-                        $categories[] = $cat_id;
+                    if(stripos($message, $key) !== false) {
+                        $categories[] = $current_cat->term_id;
                     }
                 }
             }
+        }
+
+        if(!$categories && $options['echo_spread_default_category']) {
+            $categories = [$options['echo_spread_default_category']];
         }
 
 
@@ -78,7 +91,7 @@ function echo_spread_process(WP_REST_Request $request) {
             'post_content' => $content,
             'post_status' => 'publish',
             'post_author' => $options['echo_spread_user'] ?: 1,
-            'post_category' => $categories
+            'post_category' => $categories ?? []
         );
 
         // Вставляем пост в базу данных

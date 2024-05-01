@@ -42,15 +42,16 @@ function echo_spread_process(WP_REST_Request $request) {
             if(isset($options['category_keys'][$current_cat->term_id])) {
                 $black_list = explode(';', $options['category_keys_black_list'][$current_cat->term_id]) ?: [];
                 $black_list = array_map(fn($el) => trim($el), $black_list);
-
+                $black_list = array_filter($black_list);
                 foreach ($black_list as $key) {
                     if(stripos($message, $key) !== false) {
-                        break 2;
+                        continue 2;
                     }
                 }
 
                 $keys = explode(';', $options['category_keys'][$current_cat->term_id]) ?: [];
                 $keys = array_map(fn($el) => trim($el), $keys);
+                $keys = array_filter($keys);
                 foreach ($keys as $key) {
                     if(stripos($message, $key) !== false) {
                         $categories[] = $current_cat->term_id;
@@ -61,8 +62,9 @@ function echo_spread_process(WP_REST_Request $request) {
 
         if(!$categories && $options['echo_spread_default_category']) {
             $categories = [$options['echo_spread_default_category']];
+        } elseif($categories) {
+            $categories = array_unique($categories);
         }
-
 
         $content = '';
         $attachments = [];

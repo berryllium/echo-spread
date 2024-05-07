@@ -40,20 +40,20 @@ function echo_spread_process(WP_REST_Request $request) {
         foreach ($all_categories as $current_cat) {
             /** @var WP_Term $current_cat */
             if(isset($options['category_keys'][$current_cat->term_id])) {
-                $black_list = explode(';', $options['category_keys_black_list'][$current_cat->term_id]) ?: [];
+                $black_list = explode(';', trim($options['category_keys_black_list'][$current_cat->term_id])) ?: [];
                 $black_list = array_map(fn($el) => trim($el), $black_list);
                 $black_list = array_filter($black_list);
                 foreach ($black_list as $key) {
-                    if(stripos($message, $key) !== false) {
+                    if($key && stripos($message, $key) !== false) {
                         continue 2;
                     }
                 }
 
-                $keys = explode(';', $options['category_keys'][$current_cat->term_id]) ?: [];
+                $keys = explode(';', trim($options['category_keys'][$current_cat->term_id])) ?: [];
                 $keys = array_map(fn($el) => trim($el), $keys);
                 $keys = array_filter($keys);
                 foreach ($keys as $key) {
-                    if(stripos($message, $key) !== false) {
+                    if($key && stripos($message, $key) !== false) {
                         $categories[] = $current_cat->term_id;
                     }
                 }

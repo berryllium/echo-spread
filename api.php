@@ -99,12 +99,30 @@ function echo_spread_process(WP_REST_Request $request) {
         // Вставляем пост в базу данных
         $post_id = wp_insert_post($post_data);
 
+		// Дата события
+		if(preg_match("/📆\s?(.*)/iu", $content, $match)) {
+			$match[1] = trim(str_replace('🕕 ', '', $match[1]));
+			update_post_meta($post_id, 'date_event', $match[1]);
+			update_post_meta($post_id, 'date_event_formatted', strtotime($match[1]));
+		}
+
+		// Место события
+		if(preg_match("/🏢\s?(.*)/iu", $content, $match)) {
+			update_post_meta($post_id, 'place_event', trim($match[1]));
+		}
+
+		// Прикрепляем изображения к посту
         foreach ($attachments as $id) {
             wp_update_post([
                 'ID' => $id,
                 'post_parent' => $post_id
             ]);
         }
+
+		// Миниатюра записи
+		if(count($attachments) > 0) {
+			set_post_thumbnail($post_id, $attachments[0]);
+		}
 
     } catch (Exception $exception) {
         return new WP_REST_Response(['error' => $exception->getMessage()], 500);
